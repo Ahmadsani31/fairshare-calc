@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X, Pencil, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,8 +29,21 @@ export function HomePage() {
   const [isRenameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameName, setRenameName] = useState('');
   const [selectedCalculation, setSelectedCalculation] = useState('');
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
   useEffect(() => {
     initialize();
+    const fetchVisitorCount = async () => {
+      try {
+        const response = await fetch('/api/visits');
+        if (response.ok) {
+          const data = await response.json();
+          setVisitorCount(data.data.count);
+        }
+      } catch (error) {
+        console.error("Failed to fetch visitor count:", error);
+      }
+    };
+    fetchVisitorCount();
   }, [initialize]);
   const handleNumericInput = (setter: (value: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
@@ -319,6 +332,7 @@ export function HomePage() {
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
                                   transition={{ duration: 0.5 }}
+                                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                                 >
                                   <TableCell className="font-medium">{item.name || "Item Tanpa Nama"}</TableCell>
                                   <TableCell className="text-right">{formatCurrency(item.itemGrossPrice)}</TableCell>
@@ -390,7 +404,18 @@ export function HomePage() {
           </div>
         </main>
         <footer className="text-center py-8 text-sm text-muted-foreground">
-          Built with ❤️ at Cloudflare
+          <div className="flex items-center justify-center gap-4">
+            <span>Built with ❤️ at Cloudflare</span>
+            {visitorCount !== null && (
+              <>
+                <span className="text-muted-foreground/50">|</span>
+                <div className="flex items-center gap-1.5">
+                  <Eye className="w-4 h-4" />
+                  <span>{visitorCount.toLocaleString('id-ID')} Pengunjung Unik</span>
+                </div>
+              </>
+            )}
+          </div>
         </footer>
         <Toaster richColors />
         <Dialog open={isSaveDialogOpen} onOpenChange={setSaveDialogOpen}>
