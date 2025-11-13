@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Users } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,8 +14,9 @@ const MotionTableRow = motion(TableRow);
 export function HomePage() {
   const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
   const maxDiscount = useCalculatorStore((s) => s.maxDiscount);
+  const shippingCost = useCalculatorStore((s) => s.shippingCost);
   const items = useCalculatorStore((s) => s.items);
-  const { setDiscountPercentage, setMaxDiscount, addItem, removeItem, updateItem } = useCalculatorStore();
+  const { setDiscountPercentage, setMaxDiscount, setShippingCost, addItem, removeItem, updateItem } = useCalculatorStore();
   const handleNumericInput = (setter: (value: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
     setter(parseInt(value, 10) || 0);
@@ -30,21 +31,13 @@ export function HomePage() {
   };
   const calculations = useMemo(() => {
     const totalGrossPrice = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    if (totalGrossPrice === 0) {
-      return {
-        totalGrossPrice: 0,
-        theoreticalDiscount: 0,
-        appliedDiscount: 0,
-        totalNetPrice: 0,
-        itemBreakdown: [],
-      };
-    }
-    const theoreticalDiscount = totalGrossPrice * (discountPercentage / 100);
-    const appliedDiscount = Math.min(theoreticalDiscount, maxDiscount);
-    const totalNetPrice = totalGrossPrice - appliedDiscount;
+    const theoreticalDiscount = totalGrossPrice > 0 ? totalGrossPrice * (discountPercentage / 100) : 0;
+    const appliedDiscount = totalGrossPrice > 0 ? Math.min(theoreticalDiscount, maxDiscount) : 0;
+    const subtotalAfterDiscount = totalGrossPrice - appliedDiscount;
+    const totalNetPrice = subtotalAfterDiscount + shippingCost;
     const itemBreakdown = items.map(item => {
       const itemGrossPrice = item.price * item.quantity;
-      const proportion = itemGrossPrice / totalGrossPrice;
+      const proportion = totalGrossPrice > 0 ? itemGrossPrice / totalGrossPrice : 0;
       const itemDiscount = proportion * appliedDiscount;
       const itemNetPrice = itemGrossPrice - itemDiscount;
       const itemNetPricePerQty = item.quantity > 0 ? itemNetPrice / item.quantity : 0;
@@ -57,7 +50,7 @@ export function HomePage() {
       };
     });
     return { totalGrossPrice, theoreticalDiscount, appliedDiscount, totalNetPrice, itemBreakdown };
-  }, [items, discountPercentage, maxDiscount]);
+  }, [items, discountPercentage, maxDiscount, shippingCost]);
   return (
     <div className="min-h-screen bg-background text-foreground font-sans antialiased">
       <ThemeToggle className="fixed top-4 right-4" />
@@ -176,9 +169,9 @@ export function HomePage() {
                         </TableBody>
                         <TableFooter>
                           <TableRow className="bg-muted/50">
-                            <TableCell colSpan={2} className="font-bold text-lg">Total</TableCell>
+                            <TableCell colSpan={2} className="font-bold text-lg">Subtotal</TableCell>
                             <TableCell className="text-right font-bold text-lg text-green-600">-{formatCurrency(calculations.appliedDiscount)}</TableCell>
-                            <TableCell colSpan={2} className="text-right font-bold text-lg">{formatCurrency(calculations.totalNetPrice)}</TableCell>
+                            <TableCell colSpan={2} className="text-right font-bold text-lg">{formatCurrency(calculations.totalGrossPrice - calculations.appliedDiscount)}</TableCell>
                           </TableRow>
                         </TableFooter>
                       </Table>
@@ -194,16 +187,20 @@ export function HomePage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-base">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Total Sebelum Diskon</span>
+                    <span className="text-muted-foreground">Total Belanja</span>
                     <span className="font-medium">{formatCurrency(calculations.totalGrossPrice)}</span>
                   </div>
                   <div className="flex justify-between items-center text-green-600">
-                    <span className="">Total Diskon Diterapkan</span>
+                    <span className="">Total Diskon</span>
                     <span className="font-medium">-{formatCurrency(calculations.appliedDiscount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="shipping-cost" className="flex items-center gap-1.5 text-muted-foreground"><Truck className="w-4 h-4" />Ongkos Kirim</Label>
+                    <Input id="shipping-cost" type="text" value={shippingCost.toLocaleString('id-ID')} onChange={handleNumericInput(setShippingCost)} className="h-8 max-w-[120px] text-right" placeholder="0" />
                   </div>
                   <hr className="my-2 border-border" />
                   <div className="flex justify-between items-center text-xl font-bold">
-                    <span>Total Yang Harus Dibayar</span>
+                    <span>Total Pembayaran</span>
                     <span>{formatCurrency(calculations.totalNetPrice)}</span>
                   </div>
                 </CardContent>
