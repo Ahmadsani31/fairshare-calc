@@ -33,6 +33,7 @@ interface CalculatorActions {
   saveCalculation: (name: string) => boolean;
   loadCalculation: (name: string) => void;
   deleteCalculation: (name: string) => void;
+  renameCalculation: (oldName: string, newName: string) => boolean;
 }
 const initialState: CalculationState = {
   discountPercentage: 50,
@@ -127,6 +128,27 @@ export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
       } catch (e) {
         console.error("Could not update localStorage after deletion", e);
       }
+    },
+    renameCalculation: (oldName, newName) => {
+      if (!newName || (oldName !== newName && get().savedCalculations[newName])) {
+        return false; // New name is empty or already exists (and is not the same as the old name)
+      }
+      const oldState = get().savedCalculations[oldName];
+      if (oldState) {
+        set((state) => {
+          delete state.savedCalculations[oldName];
+          state.savedCalculations[newName] = oldState;
+        });
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(get().savedCalculations));
+          return true;
+        } catch (e) {
+          console.error("Could not update localStorage after rename", e);
+          // In a real app, you might want to revert the state change here
+          return false;
+        }
+      }
+      return false; // oldName not found
     },
   }))
 );

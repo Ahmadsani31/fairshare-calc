@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,9 +23,11 @@ export function HomePage() {
   const numberOfPeople = useCalculatorStore((s) => s.numberOfPeople);
   const items = useCalculatorStore((s) => s.items);
   const savedCalculations = useCalculatorStore((s) => s.savedCalculations);
-  const { setDiscountPercentage, setMaxDiscount, setShippingCost, setNumberOfPeople, addItem, removeItem, updateItem, reset, initialize, saveCalculation, loadCalculation, deleteCalculation } = useCalculatorStore();
+  const { setDiscountPercentage, setMaxDiscount, setShippingCost, setNumberOfPeople, addItem, removeItem, updateItem, reset, initialize, saveCalculation, loadCalculation, deleteCalculation, renameCalculation } = useCalculatorStore();
   const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
+  const [isRenameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameName, setRenameName] = useState('');
   const [selectedCalculation, setSelectedCalculation] = useState('');
   useEffect(() => {
     initialize();
@@ -87,7 +89,7 @@ export function HomePage() {
       setSaveName('');
       setSelectedCalculation(saveName);
     } else {
-      toast.error('Nama perhitungan tidak boleh kosong.');
+      toast.error('Nama perhitungan tidak boleh kosong atau sudah ada.');
     }
   };
   const handleLoad = (name: string) => {
@@ -104,6 +106,21 @@ export function HomePage() {
     }
     toast.success(`Perhitungan "${name}" berhasil dihapus!`);
   };
+  const handleRename = () => {
+    if (renameCalculation(selectedCalculation, renameName)) {
+      toast.success(`Berhasil mengubah nama menjadi "${renameName}"!`);
+      setSelectedCalculation(renameName);
+      setRenameDialogOpen(false);
+    } else {
+      toast.error('Nama baru tidak valid atau sudah digunakan.');
+    }
+  };
+  const openRenameDialog = () => {
+    if (selectedCalculation) {
+      setRenameName(selectedCalculation);
+      setRenameDialogOpen(true);
+    }
+  };
   const savedCalculationKeys = Object.keys(savedCalculations);
   return (
     <TooltipProvider>
@@ -118,10 +135,26 @@ export function HomePage() {
               <p className="mt-3 max-w-2xl mx-auto text-lg text-muted-foreground">
                 Hitung harga makanan setelah diskon & ongkir proporsional, seperti di GoFood atau GrabFood.
               </p>
-              <Button variant="outline" size="icon" onClick={handleReset} className="absolute top-0 right-0 -mt-2 sm:mt-0 transition-transform hover:rotate-[-90deg] active:scale-90">
-                <RotateCcw className="w-4 h-4" />
-                <span className="sr-only">Reset Kalkulator</span>
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="icon" className="absolute top-0 right-0 -mt-2 sm:mt-0 transition-transform hover:rotate-[-90deg] active:scale-90">
+                    <RotateCcw className="w-4 h-4" />
+                    <span className="sr-only">Reset Kalkulator</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Anda yakin ingin mereset?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Semua item dan konfigurasi yang belum disimpan akan dihapus. Aksi ini tidak dapat dibatalkan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleReset}>Reset</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
             <div className="max-w-3xl mx-auto space-y-8">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -217,25 +250,30 @@ export function HomePage() {
                         </SelectContent>
                       </Select>
                       {selectedCalculation && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon">
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Aksi ini akan menghapus perhitungan bernama "{selectedCalculation}" secara permanen.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(selectedCalculation)}>Hapus</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <>
+                          <Button variant="outline" size="icon" onClick={openRenameDialog}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon">
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Aksi ini akan menghapus perhitungan bernama "{selectedCalculation}" secara permanen.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(selectedCalculation)}>Hapus</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       )}
                     </div>
                   </CardContent>
@@ -383,6 +421,37 @@ export function HomePage() {
                 <Button type="button" variant="secondary">Batal</Button>
               </DialogClose>
               <Button type="submit" onClick={handleSave}>Simpan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isRenameDialogOpen} onOpenChange={setRenameDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ubah Nama Perhitungan</DialogTitle>
+              <DialogDescription>
+                Masukkan nama baru untuk perhitungan "{selectedCalculation}".
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="rename-name" className="text-right">
+                  Nama Baru
+                </Label>
+                <Input
+                  id="rename-name"
+                  value={renameName}
+                  onChange={(e) => setRenameName(e.target.value)}
+                  className="col-span-3"
+                  placeholder="Nama baru"
+                  onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">Batal</Button>
+              </DialogClose>
+              <Button type="submit" onClick={handleRename}>Ubah Nama</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
