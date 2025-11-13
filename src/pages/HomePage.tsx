@@ -15,7 +15,7 @@ import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-const MotionTableRow = motion(TableRow);
+const MotionTableRow = motion.tr;
 export function HomePage() {
   const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
   const maxDiscount = useCalculatorStore((s) => s.maxDiscount);
