@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useCalculatorStore, FoodItem } from '@/stores/calculatorStore';
 import { formatCurrency } from '@/lib/utils';
 import { Toaster, toast } from '@/components/ui/sonner';
+import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
 const MotionTableRow = motion(TableRow);
 export function HomePage() {
   const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
@@ -58,8 +59,16 @@ export function HomePage() {
         itemNetPricePerQty,
       };
     });
-    return { totalGrossPrice, theoreticalDiscount, appliedDiscount, totalNetPrice, itemBreakdown, pricePerPerson };
+    return { totalGrossPrice, theoreticalDiscount, appliedDiscount, totalNetPrice, itemBreakdown, pricePerPerson, shippingCost, numberOfPeople };
   }, [items, discountPercentage, maxDiscount, shippingCost, numberOfPeople]);
+  const handleExportPdf = () => {
+    toast.info('Mengekspor ke PDF...');
+    exportToPdf(calculations);
+  };
+  const handleExportExcel = () => {
+    toast.info('Mengekspor ke Excel...');
+    exportToExcel(calculations);
+  };
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground font-sans antialiased">
@@ -207,6 +216,14 @@ export function HomePage() {
                         </Table>
                       </div>
                     </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Button variant="secondary" onClick={handleExportExcel} disabled={calculations.itemBreakdown.length === 0}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" /> Ekspor Excel
+                      </Button>
+                      <Button onClick={handleExportPdf} disabled={calculations.itemBreakdown.length === 0}>
+                        <FileText className="w-4 h-4 mr-2" /> Ekspor PDF
+                      </Button>
+                    </CardFooter>
                   </Card>
                 </motion.div>
               )}
