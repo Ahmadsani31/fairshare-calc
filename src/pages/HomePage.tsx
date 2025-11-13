@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useCalculatorStore, FoodItem } from '@/stores/calculatorStore';
 import { formatCurrency } from '@/lib/utils';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster, toast } from '@/components/ui/sonner';
 const MotionTableRow = motion(TableRow);
 export function HomePage() {
   const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
   const maxDiscount = useCalculatorStore((s) => s.maxDiscount);
   const shippingCost = useCalculatorStore((s) => s.shippingCost);
+  const numberOfPeople = useCalculatorStore((s) => s.numberOfPeople);
   const items = useCalculatorStore((s) => s.items);
-  const { setDiscountPercentage, setMaxDiscount, setShippingCost, addItem, removeItem, updateItem } = useCalculatorStore();
+  const { setDiscountPercentage, setMaxDiscount, setShippingCost, setNumberOfPeople, addItem, removeItem, updateItem, reset } = useCalculatorStore();
   const handleNumericInput = (setter: (value: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
     setter(parseInt(value, 10) || 0);
@@ -29,12 +30,17 @@ export function HomePage() {
       updateItem(id, field, numericValue);
     }
   };
+  const handleReset = () => {
+    reset();
+    toast.success('Kalkulator berhasil direset!');
+  };
   const calculations = useMemo(() => {
     const totalGrossPrice = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const theoreticalDiscount = totalGrossPrice > 0 ? totalGrossPrice * (discountPercentage / 100) : 0;
     const appliedDiscount = totalGrossPrice > 0 ? Math.min(theoreticalDiscount, maxDiscount) : 0;
     const subtotalAfterDiscount = totalGrossPrice - appliedDiscount;
     const totalNetPrice = subtotalAfterDiscount + shippingCost;
+    const pricePerPerson = numberOfPeople > 0 ? totalNetPrice / numberOfPeople : 0;
     const itemBreakdown = items.map(item => {
       const itemGrossPrice = item.price * item.quantity;
       const proportion = totalGrossPrice > 0 ? itemGrossPrice / totalGrossPrice : 0;
@@ -49,20 +55,24 @@ export function HomePage() {
         itemNetPricePerQty,
       };
     });
-    return { totalGrossPrice, theoreticalDiscount, appliedDiscount, totalNetPrice, itemBreakdown };
-  }, [items, discountPercentage, maxDiscount, shippingCost]);
+    return { totalGrossPrice, theoreticalDiscount, appliedDiscount, totalNetPrice, itemBreakdown, pricePerPerson };
+  }, [items, discountPercentage, maxDiscount, shippingCost, numberOfPeople]);
   return (
     <div className="min-h-screen bg-background text-foreground font-sans antialiased">
       <ThemeToggle className="fixed top-4 right-4" />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-12 md:py-16">
-          <div className="text-center mb-12 animate-fade-in">
+          <div className="text-center mb-12 animate-fade-in relative">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
               FairShare Calc
             </h1>
             <p className="mt-3 max-w-2xl mx-auto text-lg text-muted-foreground">
               Hitung harga makanan setelah diskon proporsional, seperti di aplikasi GoFood atau GrabFood.
             </p>
+            <Button variant="outline" size="icon" onClick={handleReset} className="absolute top-0 right-0 -mt-2 sm:mt-0 transition-transform hover:rotate-[-90deg] active:scale-90">
+              <RotateCcw className="w-4 h-4" />
+              <span className="sr-only">Reset Kalkulator</span>
+            </Button>
           </div>
           <div className="max-w-3xl mx-auto space-y-8">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -202,6 +212,16 @@ export function HomePage() {
                   <div className="flex justify-between items-center text-xl font-bold">
                     <span>Total Pembayaran</span>
                     <span>{formatCurrency(calculations.totalNetPrice)}</span>
+                  </div>
+                  <div className="border-t border-dashed pt-4 mt-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="split-bill" className="flex items-center gap-1.5 text-muted-foreground"><Users className="w-4 h-4" />Bagi Rata Untuk</Label>
+                      <Input id="split-bill" type="text" value={numberOfPeople} onChange={handleNumericInput(setNumberOfPeople)} className="h-8 max-w-[120px] text-right" placeholder="1" />
+                    </div>
+                    <div className="flex justify-between items-center text-lg font-semibold text-primary">
+                      <span>Per Orang</span>
+                      <span>{formatCurrency(calculations.pricePerPerson)}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

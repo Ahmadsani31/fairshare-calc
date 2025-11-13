@@ -11,12 +11,14 @@ interface CalculatorState {
   discountPercentage: number;
   maxDiscount: number;
   shippingCost: number;
+  numberOfPeople: number;
   items: FoodItem[];
 }
 interface CalculatorActions {
   setDiscountPercentage: (percentage: number) => void;
   setMaxDiscount: (max: number) => void;
   setShippingCost: (cost: number) => void;
+  setNumberOfPeople: (people: number) => void;
   addItem: () => void;
   removeItem: (id: string) => void;
   updateItem: <K extends keyof FoodItem>(id: string, field: K, value: FoodItem[K]) => void;
@@ -26,6 +28,7 @@ const initialState: CalculatorState = {
   discountPercentage: 50,
   maxDiscount: 200000,
   shippingCost: 0,
+  numberOfPeople: 1,
   items: [{ id: uuidv4(), name: 'Nasi Goreng Spesial', price: 25000, quantity: 2 }],
 };
 export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
@@ -42,6 +45,10 @@ export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
     setShippingCost: (cost) =>
       set((state) => {
         state.shippingCost = isNaN(cost) ? 0 : cost;
+      }),
+    setNumberOfPeople: (people) =>
+      set((state) => {
+        state.numberOfPeople = isNaN(people) || people < 1 ? 1 : people;
       }),
     addItem: () =>
       set((state) => {
