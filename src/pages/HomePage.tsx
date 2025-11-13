@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,9 @@ import { useCalculatorStore, FoodItem } from '@/stores/calculatorStore';
 import { formatCurrency } from '@/lib/utils';
 import { Toaster, toast } from '@/components/ui/sonner';
 import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 const MotionTableRow = motion(TableRow);
 export function HomePage() {
   const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
@@ -19,7 +22,14 @@ export function HomePage() {
   const shippingCost = useCalculatorStore((s) => s.shippingCost);
   const numberOfPeople = useCalculatorStore((s) => s.numberOfPeople);
   const items = useCalculatorStore((s) => s.items);
-  const { setDiscountPercentage, setMaxDiscount, setShippingCost, setNumberOfPeople, addItem, removeItem, updateItem, reset } = useCalculatorStore();
+  const savedCalculations = useCalculatorStore((s) => s.savedCalculations);
+  const { setDiscountPercentage, setMaxDiscount, setShippingCost, setNumberOfPeople, addItem, removeItem, updateItem, reset, initialize, saveCalculation, loadCalculation, deleteCalculation } = useCalculatorStore();
+  const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [selectedCalculation, setSelectedCalculation] = useState('');
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
   const handleNumericInput = (setter: (value: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
     setter(parseInt(value, 10) || 0);
@@ -34,6 +44,7 @@ export function HomePage() {
   };
   const handleReset = () => {
     reset();
+    setSelectedCalculation('');
     toast.success('Kalkulator berhasil direset!');
   };
   const calculations = useMemo(() => {
@@ -69,6 +80,31 @@ export function HomePage() {
     toast.info('Mengekspor ke Excel...');
     exportToExcel(calculations);
   };
+  const handleSave = () => {
+    if (saveCalculation(saveName)) {
+      toast.success(`Perhitungan "${saveName}" berhasil disimpan!`);
+      setSaveDialogOpen(false);
+      setSaveName('');
+      setSelectedCalculation(saveName);
+    } else {
+      toast.error('Nama perhitungan tidak boleh kosong.');
+    }
+  };
+  const handleLoad = (name: string) => {
+    if (name) {
+      loadCalculation(name);
+      setSelectedCalculation(name);
+      toast.success(`Perhitungan "${name}" berhasil dimuat!`);
+    }
+  };
+  const handleDelete = (name: string) => {
+    deleteCalculation(name);
+    if (selectedCalculation === name) {
+      setSelectedCalculation('');
+    }
+    toast.success(`Perhitungan "${name}" berhasil dihapus!`);
+  };
+  const savedCalculationKeys = Object.keys(savedCalculations);
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground font-sans antialiased">
@@ -156,8 +192,57 @@ export function HomePage() {
                   </CardFooter>
                 </Card>
               </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><FolderDown className="w-5 h-5 text-primary" />Aksi</CardTitle>
+                    <CardDescription>Simpan, muat, atau hapus sesi perhitungan Anda.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Button onClick={() => setSaveDialogOpen(true)} disabled={items.length === 0}>
+                      <Save className="w-4 h-4 mr-2" /> Simpan Perhitungan
+                    </Button>
+                    <div className="flex gap-2">
+                      <Select onValueChange={handleLoad} value={selectedCalculation} disabled={savedCalculationKeys.length === 0}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Muat Perhitungan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>Perhitungan Tersimpan</SelectLabel>
+                            {savedCalculationKeys.map(key => (
+                              <SelectItem key={key} value={key}>{key}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {selectedCalculation && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Aksi ini akan menghapus perhitungan bernama "{selectedCalculation}" secara permanen.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(selectedCalculation)}>Hapus</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
               {calculations.itemBreakdown.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2"><Calculator className="w-5 h-5 text-primary" />Hasil Perhitungan</CardTitle>
@@ -227,7 +312,7 @@ export function HomePage() {
                   </Card>
                 </motion.div>
               )}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5 text-primary" />Ringkasan Total</CardTitle>
@@ -270,6 +355,37 @@ export function HomePage() {
           Built with ❤️ at Cloudflare
         </footer>
         <Toaster richColors />
+        <Dialog open={isSaveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Simpan Perhitungan</DialogTitle>
+              <DialogDescription>
+                Beri nama untuk sesi perhitungan ini agar mudah diingat nanti.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="save-name" className="text-right">
+                  Nama
+                </Label>
+                <Input
+                  id="save-name"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  className="col-span-3"
+                  placeholder="Contoh: Makan Siang Kantor"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">Batal</Button>
+              </DialogClose>
+              <Button type="submit" onClick={handleSave}>Simpan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
