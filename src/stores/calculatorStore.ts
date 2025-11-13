@@ -7,46 +7,27 @@ export interface FoodItem {
   price: number;
   quantity: number;
 }
-// This represents the state that is actively being calculated
-interface CalculationState {
+interface CalculatorState {
   discountPercentage: number;
   maxDiscount: number;
-  shippingCost: number;
-  numberOfPeople: number;
   items: FoodItem[];
-}
-// This is the full state of the store, including saved calculations
-interface CalculatorState extends CalculationState {
-  savedCalculations: Record<string, CalculationState>;
 }
 interface CalculatorActions {
   setDiscountPercentage: (percentage: number) => void;
   setMaxDiscount: (max: number) => void;
-  setShippingCost: (cost: number) => void;
-  setNumberOfPeople: (people: number) => void;
   addItem: () => void;
   removeItem: (id: string) => void;
   updateItem: <K extends keyof FoodItem>(id: string, field: K, value: FoodItem[K]) => void;
   reset: () => void;
-  // New actions for persistence
-  initialize: () => void;
-  saveCalculation: (name: string) => boolean;
-  loadCalculation: (name: string) => void;
-  deleteCalculation: (name: string) => void;
-  renameCalculation: (oldName: string, newName: string) => boolean;
 }
-const initialState: CalculationState = {
+const initialState: CalculatorState = {
   discountPercentage: 50,
   maxDiscount: 200000,
-  shippingCost: 0,
-  numberOfPeople: 1,
-  items: [],
+  items: [{ id: uuidv4(), name: 'Nasi Goreng Spesial', price: 25000, quantity: 2 }],
 };
-const STORAGE_KEY = 'fairshare-calculations';
 export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
-  immer((set, get) => ({
+  immer((set) => ({
     ...initialState,
-    savedCalculations: {},
     setDiscountPercentage: (percentage) =>
       set((state) => {
         state.discountPercentage = isNaN(percentage) ? 0 : percentage;
@@ -54,14 +35,6 @@ export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
     setMaxDiscount: (max) =>
       set((state) => {
         state.maxDiscount = isNaN(max) ? 0 : max;
-      }),
-    setShippingCost: (cost) =>
-      set((state) => {
-        state.shippingCost = isNaN(cost) ? 0 : cost;
-      }),
-    setNumberOfPeople: (people) =>
-      set((state) => {
-        state.numberOfPeople = isNaN(people) || people < 1 ? 1 : people;
       }),
     addItem: () =>
       set((state) => {
@@ -79,76 +52,5 @@ export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
         }
       }),
     reset: () => set(initialState),
-    // Persistence Actions
-    initialize: () => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          set({ savedCalculations: JSON.parse(saved) });
-        }
-      } catch (e) {
-        console.error("Could not load saved calculations from localStorage", e);
-      }
-    },
-    saveCalculation: (name) => {
-      if (!name) return false;
-      const { items, discountPercentage, maxDiscount, shippingCost, numberOfPeople } = get();
-      const currentState: CalculationState = {
-        items,
-        discountPercentage,
-        maxDiscount,
-        shippingCost,
-        numberOfPeople,
-      };
-      set((state) => {
-        state.savedCalculations[name] = currentState;
-      });
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(get().savedCalculations));
-        return true;
-      } catch (e) {
-        console.error("Could not save calculations to localStorage", e);
-        return false;
-      }
-    },
-    loadCalculation: (name) => {
-      const savedState = get().savedCalculations[name];
-      if (savedState) {
-        set({
-          ...savedState,
-        });
-      }
-    },
-    deleteCalculation: (name) => {
-      set((state) => {
-        delete state.savedCalculations[name];
-      });
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(get().savedCalculations));
-      } catch (e) {
-        console.error("Could not update localStorage after deletion", e);
-      }
-    },
-    renameCalculation: (oldName, newName) => {
-      if (!newName || (oldName !== newName && get().savedCalculations[newName])) {
-        return false; // New name is empty or already exists (and is not the same as the old name)
-      }
-      const oldState = get().savedCalculations[oldName];
-      if (oldState) {
-        set((state) => {
-          delete state.savedCalculations[oldName];
-          state.savedCalculations[newName] = oldState;
-        });
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(get().savedCalculations));
-          return true;
-        } catch (e) {
-          console.error("Could not update localStorage after rename", e);
-          // In a real app, you might want to revert the state change here
-          return false;
-        }
-      }
-      return false; // oldName not found
-    },
   }))
 );

@@ -1,148 +1,221 @@
-// Home page of the app, Currently a demo page for demonstration.
-// Please rewrite this file to implement your own logic. Do not replace or delete it, simply rewrite this HomePage.tsx file.
-import { useEffect } from 'react'
-import { Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { Toaster, toast } from '@/components/ui/sonner'
-import { create } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
-import { AppLayout } from '@/components/layout/AppLayout'
-
-// Timer store: independent slice with a clear, minimal API, for demonstration
-type TimerState = {
-  isRunning: boolean;
-  elapsedMs: number;
-  start: () => void;
-  pause: () => void;
-  reset: () => void;
-  tick: (deltaMs: number) => void;
-}
-
-const useTimerStore = create<TimerState>((set) => ({
-  isRunning: false,
-  elapsedMs: 0,
-  start: () => set({ isRunning: true }),
-  pause: () => set({ isRunning: false }),
-  reset: () => set({ elapsedMs: 0, isRunning: false }),
-  tick: (deltaMs) => set((s) => ({ elapsedMs: s.elapsedMs + deltaMs })),
-}))
-
-// Counter store: separate slice to showcase multiple stores without coupling
-type CounterState = {
-  count: number;
-  inc: () => void;
-  reset: () => void;
-}
-
-const useCounterStore = create<CounterState>((set) => ({
-  count: 0,
-  inc: () => set((s) => ({ count: s.count + 1 })),
-  reset: () => set({ count: 0 }),
-}))
-
-function formatDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
+import React, { useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useCalculatorStore, FoodItem } from '@/stores/calculatorStore';
+import { formatCurrency } from '@/lib/utils';
+import { Toaster } from '@/components/ui/sonner';
+const MotionTableRow = motion(TableRow);
 export function HomePage() {
-  // Select only what is needed to avoid unnecessary re-renders
-  const { isRunning, elapsedMs } = useTimerStore(
-    useShallow((s) => ({ isRunning: s.isRunning, elapsedMs: s.elapsedMs })),
-  )
-  const start = useTimerStore((s) => s.start)
-  const pause = useTimerStore((s) => s.pause)
-  const resetTimer = useTimerStore((s) => s.reset)
-  const count = useCounterStore((s) => s.count)
-  const inc = useCounterStore((s) => s.inc)
-  const resetCount = useCounterStore((s) => s.reset)
-
-  // Drive the timer only while running; avoid update-depth issues with a scoped RAF
-  useEffect(() => {
-    if (!isRunning) return
-    let raf = 0
-    let last = performance.now()
-    const loop = () => {
-      const now = performance.now()
-      const delta = now - last
-      last = now
-      // Read store API directly to keep effect deps minimal and stable
-      useTimerStore.getState().tick(delta)
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [isRunning])
-
-  const onPleaseWait = () => {
-    inc()
-    if (!isRunning) {
-      start()
-      toast.success('Building your app…', {
-        description: 'Hang tight, we\'re setting everything up.',
-      })
+  const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
+  const maxDiscount = useCalculatorStore((s) => s.maxDiscount);
+  const items = useCalculatorStore((s) => s.items);
+  const { setDiscountPercentage, setMaxDiscount, addItem, removeItem, updateItem } = useCalculatorStore();
+  const handleNumericInput = (setter: (value: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    setter(parseInt(value, 10) || 0);
+  };
+  const handleItemUpdate = (id: string, field: keyof FoodItem, value: string) => {
+    if (field === 'name') {
+      updateItem(id, field, value);
     } else {
-      pause()
-      toast.info('Taking a short pause', {
-        description: 'We\'ll continue shortly.',
-      })
+      const numericValue = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
+      updateItem(id, field, numericValue);
     }
-  }
-
-  const formatted = formatDuration(elapsedMs)
-
+  };
+  const calculations = useMemo(() => {
+    const totalGrossPrice = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    if (totalGrossPrice === 0) {
+      return {
+        totalGrossPrice: 0,
+        theoreticalDiscount: 0,
+        appliedDiscount: 0,
+        totalNetPrice: 0,
+        itemBreakdown: [],
+      };
+    }
+    const theoreticalDiscount = totalGrossPrice * (discountPercentage / 100);
+    const appliedDiscount = Math.min(theoreticalDiscount, maxDiscount);
+    const totalNetPrice = totalGrossPrice - appliedDiscount;
+    const itemBreakdown = items.map(item => {
+      const itemGrossPrice = item.price * item.quantity;
+      const proportion = itemGrossPrice / totalGrossPrice;
+      const itemDiscount = proportion * appliedDiscount;
+      const itemNetPrice = itemGrossPrice - itemDiscount;
+      const itemNetPricePerQty = item.quantity > 0 ? itemNetPrice / item.quantity : 0;
+      return {
+        ...item,
+        itemGrossPrice,
+        itemDiscount,
+        itemNetPrice,
+        itemNetPricePerQty,
+      };
+    });
+    return { totalGrossPrice, theoreticalDiscount, appliedDiscount, totalNetPrice, itemBreakdown };
+  }, [items, discountPercentage, maxDiscount]);
   return (
-    <AppLayout>
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 overflow-hidden relative">
-        <ThemeToggle />
-        <div className="absolute inset-0 bg-gradient-rainbow opacity-10 dark:opacity-20 pointer-events-none" />
-        <div className="text-center space-y-8 relative z-10 animate-fade-in">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-primary floating">
-              <Sparkles className="w-8 h-8 text-white rotating" />
-            </div>
+    <div className="min-h-screen bg-background text-foreground font-sans antialiased">
+      <ThemeToggle className="fixed top-4 right-4" />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-12 md:py-16">
+          <div className="text-center mb-12 animate-fade-in">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+              FairShare Calc
+            </h1>
+            <p className="mt-3 max-w-2xl mx-auto text-lg text-muted-foreground">
+              Hitung harga makanan setelah diskon proporsional, seperti di aplikasi GoFood atau GrabFood.
+            </p>
           </div>
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-            Creating your <span className="text-gradient">app</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-            Your application would be ready soon.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Button 
-              size="lg"
-              onClick={onPleaseWait}
-              className="btn-gradient px-8 py-4 text-lg font-semibold hover:-translate-y-0.5 transition-all duration-200"
-              aria-live="polite"
-            >
-              Please Wait
-            </Button>
-          </div>
-          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-            <div>
-              Time elapsed: <span className="font-medium tabular-nums text-foreground">{formatted}</span>
-            </div>
-            <div>
-              Coins: <span className="font-medium tabular-nums text-foreground">{count}</span>
-            </div>
-          </div>
-          <div className="flex justify-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => { resetTimer(); resetCount(); toast('Reset complete') }}>
-              Reset
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { inc(); toast('Coin added') }}>
-              Add Coin
-            </Button>
+          <div className="max-w-3xl mx-auto space-y-8">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Coins className="w-5 h-5 text-primary" />Konfigurasi Diskon</CardTitle>
+                  <CardDescription>Masukkan detail diskon yang berlaku untuk total belanja.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="discount-percentage" className="flex items-center gap-1.5"><Percent className="w-4 h-4" />Persentase Diskon (%)</Label>
+                    <Input id="discount-percentage" type="text" value={discountPercentage} onChange={handleNumericInput(setDiscountPercentage)} placeholder="e.g., 50" className="text-lg" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max-discount" className="flex items-center gap-1.5"><Tag className="w-4 h-4" />Maksimal Diskon (Rp)</Label>
+                    <Input id="max-discount" type="text" value={maxDiscount.toLocaleString('id-ID')} onChange={handleNumericInput(setMaxDiscount)} placeholder="e.g., 200000" className="text-lg" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-primary" />Daftar Makanan</CardTitle>
+                  <CardDescription>Masukkan semua item belanja Anda di sini.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <AnimatePresence>
+                    {items.map((item, index) => (
+                      <motion.div
+                        key={item.id}
+                        layout
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="grid grid-cols-12 gap-2 items-center"
+                      >
+                        <div className="col-span-12 sm:col-span-5">
+                          <Label htmlFor={`item-name-${index}`} className="sr-only">Nama Makanan</Label>
+                          <Input id={`item-name-${index}`} value={item.name} onChange={(e) => handleItemUpdate(item.id, 'name', e.target.value)} placeholder="Nama Makanan" />
+                        </div>
+                        <div className="col-span-6 sm:col-span-3">
+                          <Label htmlFor={`item-price-${index}`} className="sr-only">Harga</Label>
+                          <Input id={`item-price-${index}`} value={item.price.toLocaleString('id-ID')} onChange={(e) => handleItemUpdate(item.id, 'price', e.target.value)} placeholder="Harga" />
+                        </div>
+                        <div className="col-span-4 sm:col-span-2">
+                          <Label htmlFor={`item-qty-${index}`} className="sr-only">Jumlah</Label>
+                          <Input id={`item-qty-${index}`} value={item.quantity} onChange={(e) => handleItemUpdate(item.id, 'quantity', e.target.value)} placeholder="Qty" className="text-center" />
+                        </div>
+                        <div className="col-span-2 sm:col-span-2 flex justify-end">
+                          <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" onClick={addItem} className="w-full transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                    <PlusCircle className="w-4 h-4 mr-2" /> Tambah Makanan
+                  </Button>
+                </CardFooter>
+              </Card>
+            </motion.div>
+            {calculations.itemBreakdown.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Calculator className="w-5 h-5 text-primary" />Hasil Perhitungan</CardTitle>
+                    <CardDescription>Rincian harga setelah diskon diterapkan secara proporsional.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nama Makanan</TableHead>
+                            <TableHead className="text-right">Harga Asli</TableHead>
+                            <TableHead className="text-right text-green-600">Diskon</TableHead>
+                            <TableHead className="text-right font-semibold">Harga Akhir</TableHead>
+                            <TableHead className="text-right">Harga/Porsi</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <AnimatePresence>
+                            {calculations.itemBreakdown.map(item => (
+                              <MotionTableRow
+                                key={item.id}
+                                layout
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                              >
+                                <TableCell className="font-medium">{item.name || "Item Tanpa Nama"}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.itemGrossPrice)}</TableCell>
+                                <TableCell className="text-right text-green-600">-{formatCurrency(item.itemDiscount)}</TableCell>
+                                <TableCell className="text-right font-semibold">{formatCurrency(item.itemNetPrice)}</TableCell>
+                                <TableCell className="text-right text-muted-foreground">{formatCurrency(item.itemNetPricePerQty)}</TableCell>
+                              </MotionTableRow>
+                            ))}
+                          </AnimatePresence>
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow className="bg-muted/50">
+                            <TableCell colSpan={2} className="font-bold text-lg">Total</TableCell>
+                            <TableCell className="text-right font-bold text-lg text-green-600">-{formatCurrency(calculations.appliedDiscount)}</TableCell>
+                            <TableCell colSpan={2} className="text-right font-bold text-lg">{formatCurrency(calculations.totalNetPrice)}</TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5 text-primary" />Ringkasan Total</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-base">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Total Sebelum Diskon</span>
+                    <span className="font-medium">{formatCurrency(calculations.totalGrossPrice)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-green-600">
+                    <span className="">Total Diskon Diterapkan</span>
+                    <span className="font-medium">-{formatCurrency(calculations.appliedDiscount)}</span>
+                  </div>
+                  <hr className="my-2 border-border" />
+                  <div className="flex justify-between items-center text-xl font-bold">
+                    <span>Total Yang Harus Dibayar</span>
+                    <span>{formatCurrency(calculations.totalNetPrice)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
         </div>
-        <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-          <p>Powered by Cloudflare</p>
-        </footer>
-        <Toaster richColors closeButton />
-      </div>
-    </AppLayout>
-  )
+      </main>
+      <footer className="text-center py-8 text-sm text-muted-foreground">
+        Built with ❤️ at Cloudflare
+      </footer>
+      <Toaster richColors />
+    </div>
+  );
 }
