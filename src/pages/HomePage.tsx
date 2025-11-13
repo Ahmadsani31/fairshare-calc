@@ -170,11 +170,11 @@ export function HomePage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="max-discount" className="flex items-center gap-1.5"><Tag className="w-4 h-4" />Maksimal Diskon (Rp)</Label>
-                      <Input id="max-discount" type="text" value={maxDiscount.toLocaleString('id-ID')} onChange={handleNumericInput(setMaxDiscount)} placeholder="e.g., 200000" className="text-lg" />
+                      <Input id="max-discount" type="text" value={'Rp. ' + maxDiscount.toLocaleString('id-ID')} onChange={handleNumericInput(setMaxDiscount)} placeholder="e.g., 200000" className="text-lg" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="shipping-cost" className="flex items-center gap-1.5"><Truck className="w-4 h-4" />Ongkos Kirim (Rp)</Label>
-                      <Input id="shipping-cost" type="text" value={shippingCost.toLocaleString('id-ID')} onChange={handleNumericInput(setShippingCost)} placeholder="e.g., 15000" className="text-lg" />
+                      <Input id="shipping-cost" type="text" value={'Rp. ' + shippingCost.toLocaleString('id-ID')} onChange={handleNumericInput(setShippingCost)} placeholder="e.g., 15000" className="text-lg" />
                     </div>
                   </CardContent>
                 </Card>
@@ -203,11 +203,11 @@ export function HomePage() {
                           </div>
                           <div className="col-span-6 sm:col-span-3">
                             <Label htmlFor={`item-price-${index}`} className="sr-only">Harga</Label>
-                            <Input id={`item-price-${index}`} value={item.price.toLocaleString('id-ID')} onChange={(e) => handleItemUpdate(item.id, 'price', e.target.value)} placeholder="Harga" />
+                            <Input id={`item-price-${index}`} value={'Rp. ' + item.price.toLocaleString('id-ID')} onChange={(e) => handleItemUpdate(item.id, 'price', e.target.value)} placeholder="Harga" />
                           </div>
                           <div className="col-span-4 sm:col-span-2">
                             <Label htmlFor={`item-qty-${index}`} className="sr-only">Jumlah</Label>
-                            <Input id={`item-qty-${index}`} value={item.quantity} onChange={(e) => handleItemUpdate(item.id, 'quantity', e.target.value)} placeholder="Qty" className="text-center" />
+                            <Input id={`item-qty-${index}`} type="number" min="1" value={item.quantity} onChange={(e) => handleItemUpdate(item.id, 'quantity', e.target.value)} placeholder="Qty" className="text-center" />
                           </div>
                           <div className="col-span-2 sm:col-span-2 flex justify-end">
                             <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
