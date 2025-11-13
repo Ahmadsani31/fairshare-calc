@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X, Pencil, Eye } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Percent, Coins, FileText, Tag, Wallet, Truck, Users, RotateCcw, Info, FileSpreadsheet, Save, FolderDown, X, Pencil, Eye, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 const MotionTableRow = motion.tr;
 export function HomePage() {
   const discountPercentage = useCalculatorStore((s) => s.discountPercentage);
@@ -24,6 +25,7 @@ export function HomePage() {
   const items = useCalculatorStore((s) => s.items);
   const savedCalculations = useCalculatorStore((s) => s.savedCalculations);
   const { setDiscountPercentage, setMaxDiscount, setShippingCost, setNumberOfPeople, addItem, removeItem, updateItem, reset, initialize, saveCalculation, loadCalculation, deleteCalculation, renameCalculation } = useCalculatorStore();
+  const [loading, setLoading] = useState(true);
   const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [isRenameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -41,6 +43,8 @@ export function HomePage() {
         }
       } catch (error) {
         console.error("Failed to fetch visitor count:", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchVisitorCount();
@@ -133,6 +137,27 @@ export function HomePage() {
       setRenameName(selectedCalculation);
       setRenameDialogOpen(true);
     }
+  };
+  const handleCopyToClipboard = () => {
+    const { totalGrossPrice, appliedDiscount, shippingCost, totalNetPrice, pricePerPerson, numberOfPeople } = calculations;
+    const summaryText = `
+Ringkasan Belanja - FairShare Calc
+-----------------------------------
+Total Belanja: ${formatCurrency(totalGrossPrice)}
+Total Diskon: -${formatCurrency(appliedDiscount)}
+Total Ongkos Kirim: ${formatCurrency(shippingCost)}
+-----------------------------------
+Total Pembayaran: ${formatCurrency(totalNetPrice)}
+${numberOfPeople > 1 ? `\nPembayaran Per Orang (${numberOfPeople} orang): ${formatCurrency(pricePerPerson)}` : ''}
+    `.trim();
+    navigator.clipboard.writeText(summaryText)
+      .then(() => {
+        toast.success('Hasil perhitungan disalin ke clipboard!');
+      })
+      .catch(err => {
+        console.error('Failed to copy text: ', err);
+        toast.error('Gagal menyalin hasil perhitungan.');
+      });
   };
   const savedCalculationKeys = Object.keys(savedCalculations);
   return (
@@ -292,7 +317,7 @@ export function HomePage() {
                   </CardContent>
                 </Card>
               </motion.div>
-              {calculations.itemBreakdown.length > 0 && (
+              {items.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
                   <Card>
                     <CardHeader>
@@ -364,55 +389,76 @@ export function HomePage() {
                   </Card>
                 </motion.div>
               )}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5 text-primary" />Ringkasan Total</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-base">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Total Belanja</span>
-                      <span className="font-medium">{formatCurrency(calculations.totalGrossPrice)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-green-600">
-                      <span className="">Total Diskon</span>
-                      <span className="font-medium">-{formatCurrency(calculations.appliedDiscount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Total Ongkos Kirim</span>
-                      <span className="font-medium">{formatCurrency(shippingCost)}</span>
-                    </div>
-                    <hr className="my-2 border-border" />
-                    <div className="flex justify-between items-center text-xl font-bold">
-                      <span>Total Pembayaran</span>
-                      <span>{formatCurrency(calculations.totalNetPrice)}</span>
-                    </div>
-                    <div className="border-t border-dashed pt-4 mt-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <Label htmlFor="split-bill" className="flex items-center gap-1.5 text-muted-foreground"><Users className="w-4 h-4" />Bagi Rata Untuk</Label>
-                        <Input id="split-bill" type="text" value={numberOfPeople} onChange={handleNumericInput(setNumberOfPeople)} className="h-8 max-w-[120px] text-right" placeholder="1" />
+              {items.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5 text-primary" />Ringkasan Total</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 text-base">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Total Belanja</span>
+                          <span className="font-medium">{formatCurrency(calculations.totalGrossPrice)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-green-600">
+                          <span className="">Total Diskon</span>
+                          <span className="font-medium">-{formatCurrency(calculations.appliedDiscount)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Total Ongkos Kirim</span>
+                          <span className="font-medium">{formatCurrency(shippingCost)}</span>
+                        </div>
+                        <hr className="my-2 border-border" />
+                        <div className="flex justify-between items-center text-xl font-bold">
+                          <span>Total Pembayaran</span>
+                          <span>{formatCurrency(calculations.totalNetPrice)}</span>
+                        </div>
+                        <div className="border-t border-dashed pt-4 mt-4 space-y-3">
+                          <div className="flex justify-between items-center">
+                            <Label htmlFor="split-bill" className="flex items-center gap-1.5 text-muted-foreground"><Users className="w-4 h-4" />Bagi Rata Untuk</Label>
+                            <Input id="split-bill" type="text" value={numberOfPeople} onChange={handleNumericInput(setNumberOfPeople)} className="h-8 max-w-[120px] text-right" placeholder="1" />
+                          </div>
+                          <div className="flex justify-between items-center text-lg font-semibold text-primary">
+                            <span>Per Orang</span>
+                            <span>{formatCurrency(calculations.pricePerPerson)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center text-lg font-semibold text-primary">
-                        <span>Per Orang</span>
-                        <span>{formatCurrency(calculations.pricePerPerson)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button onClick={handleCopyToClipboard} variant="outline" className="w-full">
+                        <Copy className="w-4 h-4 mr-2" /> Salin Hasil
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
+              )}
             </div>
           </div>
         </main>
         <footer className="text-center py-8 text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-4">
             <span>Built with ❤️ at Cloudflare</span>
-            {visitorCount !== null && (
+            {loading ? (
               <>
                 <span className="text-muted-foreground/50">|</span>
-                <div className="flex items-center gap-1.5">
-                  <Eye className="w-4 h-4" />
-                  <span>{visitorCount.toLocaleString('id-ID')} Pengunjung Unik</span>
-                </div>
+                <Skeleton className="h-4 w-40" />
+              </>
+            ) : visitorCount !== null && (
+              <>
+                <span className="text-muted-foreground/50">|</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 cursor-help">
+                      <Eye className="w-4 h-4" />
+                      <span>{visitorCount.toLocaleString('id-ID')} Pengunjung Unik</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Jumlah pengunjung unik sejak deployment terakhir (non-persisten).</p>
+                  </TooltipContent>
+                </Tooltip>
               </>
             )}
           </div>

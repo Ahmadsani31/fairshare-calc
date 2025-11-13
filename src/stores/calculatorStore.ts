@@ -40,7 +40,7 @@ const initialState: CalculationState = {
   maxDiscount: 200000,
   shippingCost: 0,
   numberOfPeople: 1,
-  items: [{ id: uuidv4(), name: 'Nasi Goreng Spesial', price: 25000, quantity: 2 }],
+  items: [],
 };
 const STORAGE_KEY = 'fairshare-calculations';
 export const useCalculatorStore = create<CalculatorState & CalculatorActions>()(
