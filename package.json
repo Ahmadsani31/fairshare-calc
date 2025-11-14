@@ -1,5 +1,5 @@
 {
-  "name": "fairshare-calc-nzv1xytib9z21txv_a_nl",
+  "name": "c-code-react-runner",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,7 @@
     "lint": "eslint --cache -f json --quiet .",
     "preview": "bun run build && vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "deploy": "bun run build && wrangler deploy",
-    "cf-typegen": "wrangler types",
-    "prepare": "bun .bootstrap.js || true"
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -84,7 +83,6 @@
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "wrangler": "^4.39.0",
-    "xlsx": "^0.18.5",
     "zod": "^4.0.5",
     "zustand": "^5.0.6"
   },
