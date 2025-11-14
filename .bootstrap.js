@@ -78,7 +78,8 @@ function updateWranglerJsonc() {
 
 function runSetupCommands() {
     const commands = [
-    "bun install jspdf jspdf-autotable xlsx"
+    "bun install jspdf jspdf-autotable xlsx",
+    "bun remove xlsx"
 ];
     
     if (commands.length === 0) {
