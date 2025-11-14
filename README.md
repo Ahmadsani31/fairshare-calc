@@ -1,6 +1,6 @@
 # FairShare Calc
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ahmadsani31/fairshare-calc)
 
 A simple web application to calculate per-item food prices after applying a proportional discount with a maximum cap, similar to food delivery app vouchers.
 
@@ -82,7 +82,7 @@ This project is configured for easy deployment to Cloudflare Pages/Workers.
 
 To deploy your own version, simply click the button below or run the deploy command after setting up your Cloudflare account and Wrangler.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Ahmadsani31/fairshare-calc)
 
 Alternatively, you can deploy manually from the command line:
 
