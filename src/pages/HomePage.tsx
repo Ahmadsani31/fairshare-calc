@@ -95,9 +95,9 @@ export function HomePage() {
     toast.info('Mengekspor ke PDF...');
     exportToPdf(calculations);
   };
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     toast.info('Mengekspor ke Excel...');
-    exportToExcel(calculations);
+    await exportToExcel(calculations);
   };
   const handleSave = () => {
     if (saveCalculation(saveName)) {
@@ -439,7 +439,7 @@ ${numberOfPeople > 1 ? `\nPembayaran Per Orang (${numberOfPeople} orang): ${form
         </main>
         <footer className="text-center py-8 text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-4">
-            <span>Built with ❤️ at Cloudflare</span>
+            <span>Built with ���️ at Cloudflare</span>
             {loading ? (
               <>
                 <span className="text-muted-foreground/50">|</span>
